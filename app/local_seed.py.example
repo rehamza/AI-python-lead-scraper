@@ -4,6 +4,11 @@ app/local_seed.py is gitignored — it's the right place for your real ICP
 targeting strategy, unannounced products, or anything else you don't want in
 a public/forked copy of this repo. It's loaded automatically on boot if
 present (see app/seed.py), alongside the generic example campaign.
+
+A few example shapes below — a blank template, an MVP-development agency,
+and a vertical SaaS (restaurant software) — to show how differently a
+campaign can be configured depending on what you're selling and to whom.
+Delete the ones you don't need; keep only what applies to your business.
 """
 
 SEED_CAMPAIGNS: list[dict] = [
@@ -20,6 +25,79 @@ SEED_CAMPAIGNS: list[dict] = [
         "negative_signals": ["is itself a competitor", "large enterprise with in-house team"],
         "services": ["Service A", "Service B"],
         "min_score": 60,
+        "target_leads_per_run": 50,
+        "max_iterations": 3,
+        "queries_per_iteration": 12,
+        "results_per_query": 10,
+    },
+    {
+        # Example 2: an MVP-development agency targeting non-technical founders.
+        "slug": "mvp-development",
+        "name": "MVP Development — Idea to Launch",
+        "company_name": "My Studio",
+        "company_url": "https://example.com",
+        "product_description": (
+            "We design and build MVPs for early-stage founders — from idea validation to a "
+            "working product in weeks, not months."
+        ),
+        "icp_description": (
+            "Non-technical or solo founders with a validated idea but no product built yet, "
+            "typically pre-seed or bootstrapped, who need a working MVP to start selling, raise "
+            "funding, or test demand."
+        ),
+        "regions": ["USA", "Canada", "UK"],
+        "sectors": ["B2B SaaS", "Consumer Apps", "Marketplaces"],
+        "positive_signals": [
+            "has an idea, waitlist, or landing page but no product built yet",
+            "non-technical founder with no engineering co-founder",
+            "raised or is raising a small pre-seed round earmarked for building the product",
+            "publicly looking for a developer, technical co-founder, or dev agency",
+        ],
+        "negative_signals": [
+            "already has an in-house engineering team or technical co-founder",
+            "is itself an MVP/app development agency (competitor)",
+            "enterprise or large company, not an early-stage startup",
+        ],
+        "services": ["MVP Development", "Product Design", "Technical Co-Founder as a Service"],
+        "min_score": 60,
+        "target_leads_per_run": 50,
+        "max_iterations": 3,
+        "queries_per_iteration": 12,
+        "results_per_query": 10,
+    },
+    {
+        # Example 3: a vertical SaaS — same shape, completely different ICP and signals.
+        "slug": "restaurant-software",
+        "name": "Restaurant Management Software",
+        "company_name": "My Restaurant SaaS",
+        "company_url": "https://example.com",
+        "product_description": (
+            "Cloud-based restaurant management software — POS, online ordering, table "
+            "reservations, and inventory in one system — built for independent restaurants and "
+            "small chains."
+        ),
+        "icp_description": (
+            "Independent restaurant owners and small chains (2-20 locations) still running on "
+            "legacy POS systems, paper-based ordering, or a patchwork of disconnected tools, who "
+            "are actively looking to modernize their operations."
+        ),
+        "regions": ["USA", "Canada", "UK"],
+        "sectors": ["Restaurants", "Hospitality", "Food & Beverage"],
+        "positive_signals": [
+            "runs 2-20 restaurant locations",
+            "publicly complains about a legacy or clunky POS/ordering system",
+            "recently opened a new location or is expanding",
+            "hiring an operations manager but not a software/IT role",
+        ],
+        "negative_signals": [
+            "is itself a restaurant POS or software vendor (competitor)",
+            "single location with no digital presence or growth intent",
+            "large national chain with an in-house tech/IT team",
+        ],
+        "services": [
+            "POS Software", "Online Ordering", "Table Reservation System", "Inventory Management",
+        ],
+        "min_score": 55,
         "target_leads_per_run": 50,
         "max_iterations": 3,
         "queries_per_iteration": 12,

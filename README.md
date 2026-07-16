@@ -26,6 +26,7 @@ Campaign-driven by design: adding a new lead-gen use case is a single API call, 
 - [Usage](#usage)
 - [Creating a new campaign](#creating-a-new-campaign-no-code-changes)
 - [Keeping your real campaigns private](#keeping-your-real-campaigns-private)
+- [Using this for your own business](#using-this-for-your-own-business)
 - [Endpoints](#endpoints)
 - [Project layout](#project-layout)
 - [Cost & tuning notes](#cost--tuning-notes)
@@ -259,7 +260,46 @@ cp app/local_seed.py.example app/local_seed.py
 ```
 
 `app/local_seed.py` is gitignored and loaded automatically on boot if present — your ICP
-strategy, unannounced products, and scoring logic never end up in a public commit.
+strategy, unannounced products, and scoring logic never end up in a public commit. See
+`app/local_seed.py.example` for a few different campaign shapes (a blank template, an
+MVP-development agency, a vertical SaaS) to model your own on.
+
+## Using this for your own business
+
+### Fork it
+
+1. Click **Fork** (top-right of this repo's GitHub page) to get your own copy under your account.
+2. Clone your fork:
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/AI-python-lead-scraper.git
+   cd AI-python-lead-scraper
+   ```
+3. Follow [Quickstart](#quickstart) to set up your own database and `.env`.
+4. Add your real campaigns to `app/local_seed.py` (previous section) — they stay on your machine
+   unless you choose to commit them.
+
+> GitHub forks of a public repo are themselves public. If you want a fully private copy — e.g. to
+> keep your customizations off GitHub entirely — clone this repo and push it into a **new private
+> repository** of your own instead of using the Fork button. That gives you a private history
+> rather than a linked public fork.
+
+### Staying up to date
+
+Watch this repo (bell icon, top-right) to get notified about new search providers, enrichment
+sources, or fixes. Pull them into your fork whenever you want:
+
+```bash
+git remote add upstream https://github.com/rehamza/AI-python-lead-scraper.git
+git fetch upstream
+git merge upstream/main
+```
+
+### Found it useful?
+
+Starring the repo is the single biggest thing that helps it reach more people — GitHub surfaces
+starred and forked repos more in search and topic pages, which is how a tool like this gets found
+at all. If you build a new search provider or enrichment source, a PR back benefits everyone
+running it, not just you.
 
 ## Endpoints
 
