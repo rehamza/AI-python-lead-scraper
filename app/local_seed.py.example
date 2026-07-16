@@ -1,0 +1,28 @@
+"""Copy this file to app/local_seed.py and fill in your own campaigns.
+
+app/local_seed.py is gitignored — it's the right place for your real ICP
+targeting strategy, unannounced products, or anything else you don't want in
+a public/forked copy of this repo. It's loaded automatically on boot if
+present (see app/seed.py), alongside the generic example campaign.
+"""
+
+SEED_CAMPAIGNS: list[dict] = [
+    {
+        "slug": "my-real-campaign",
+        "name": "My Company — What We Sell",
+        "company_name": "My Company",
+        "company_url": "https://example.com",
+        "product_description": "What your product/service actually does...",
+        "icp_description": "Who buys it, in which regions, at what stage...",
+        "regions": ["USA", "UK"],
+        "sectors": ["B2B SaaS"],
+        "positive_signals": ["just raised seed funding", "hiring designers not engineers"],
+        "negative_signals": ["is itself a competitor", "large enterprise with in-house team"],
+        "services": ["Service A", "Service B"],
+        "min_score": 60,
+        "target_leads_per_run": 50,
+        "max_iterations": 3,
+        "queries_per_iteration": 12,
+        "results_per_query": 10,
+    },
+]

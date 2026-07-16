@@ -1,0 +1,23 @@
+# Web framework
+fastapi>=0.115
+uvicorn[standard]>=0.32
+
+# Database (PostgreSQL, async)
+sqlalchemy[asyncio]>=2.0.43
+psycopg[binary]>=3.2
+
+# Config / validation
+pydantic>=2.12
+pydantic-settings>=2.6
+
+# LLM — Anthropic Claude
+anthropic>=0.116
+
+# Search providers
+ddgs>=9.0            # free multi-engine metasearch (no API key)
+httpx>=0.27          # Serper / Brave / SearXNG / crawling
+
+# Enrichment & verification
+beautifulsoup4>=4.12
+dnspython>=2.7       # MX lookups (async)
+email-validator>=2.2 # RFC syntax validation

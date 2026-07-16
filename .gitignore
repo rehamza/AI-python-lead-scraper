@@ -1,0 +1,20 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.csv
+!*example*.csv
+leadgen_state.json
+.DS_Store
+searxng/
+
+# Your real campaign definitions (ICP targeting strategy, unannounced products).
+# Copy app/local_seed.py.example -> app/local_seed.py and fill in your own —
+# it's loaded automatically on boot if present, never committed.
+app/local_seed.py
+
+# Pre-FastAPI standalone scripts, superseded by app/ — kept locally, not shipped
+# in the public backend.
+enrich_emails.py
+softquorra_leadgen.py
