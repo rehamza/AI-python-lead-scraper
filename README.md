@@ -21,7 +21,6 @@ Campaign-driven by design: adding a new lead-gen use case is a single API call, 
 - [Features](#features)
 - [Architecture](#architecture)
 - [Search providers](#search-providers--the-free-serper-answer)
-- [Why not LangGraph?](#why-not-langgraph)
 - [Email verification](#email-verification-no-paid-apis)
 - [Quickstart](#quickstart)
 - [Usage](#usage)
@@ -120,15 +119,6 @@ curl "http://localhost:8888/search?q=test&format=json"   # should return JSON, n
 ```
 
 Then set `SEARXNG_URL=http://localhost:8888` in `.env`.
-
-### Why not LangGraph?
-
-The flow is a linear pipeline with one feedback edge (plan → … → persist → back to plan).
-LangGraph earns its complexity when you have many conditional branches, human-in-the-loop
-interrupts, or checkpointed state machines. Here, explicit async Python is shorter, easier to
-debug, and has no framework churn — while all the *intelligence* (query planning, qualification,
-extraction) comes from Claude structured-output calls. If the flow later grows real branching,
-`services/agent/pipeline.py` maps 1:1 onto LangGraph nodes.
 
 ### Email verification (no paid APIs)
 
@@ -333,9 +323,3 @@ sharing back.
 ## License
 
 [MIT](LICENSE) — do whatever you want with it.
-
----
-
-Built and maintained by [Softquorra](https://softquorra.com) — we build AI agents, SaaS products,
-and MVPs for startups that don't want to hire an in-house team. If this tool is useful to you and
-you need something built, [get in touch](https://softquorra.com).

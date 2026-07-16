@@ -40,7 +40,7 @@ class Campaign(Base):
     """A reusable lead-gen configuration (the 'dynamic form').
 
     Everything the agent needs to know about a product/ICP lives here, so new
-    use cases (Softquorra services, Socialope, future products) are just rows.
+    use cases are just rows, not code changes.
     """
 
     __tablename__ = "campaigns"
