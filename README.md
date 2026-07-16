@@ -20,13 +20,22 @@ Campaign-driven by design: adding a new lead-gen use case is a single API call, 
 
 ### Step 1 — Get the code
 
-**Don't know git?** On the [repo page](https://github.com/rehamza/AI-python-lead-scraper), click
-the green **Code** button → **Download ZIP**, then unzip it anywhere on your computer.
+Click **Fork** (top-right of the [repo page](https://github.com/rehamza/AI-python-lead-scraper))
+to make your own copy on GitHub — no git or coding experience needed for this step.
+
+> While you're there: a ⭐ star helps other people find this tool. Found it useful? Share it —
+> *"Found this AI lead-gen tool useful — https://github.com/rehamza/AI-python-lead-scraper"*
+> works as a post on X, LinkedIn, or wherever your audience is.
+
+Then, from **your fork's page** (`github.com/YOUR-USERNAME/AI-python-lead-scraper`):
+
+**Don't know git?** Click the green **Code** button → **Download ZIP**, then unzip it anywhere on
+your computer.
 
 **Know git?**
 
 ```bash
-git clone https://github.com/rehamza/AI-python-lead-scraper.git
+git clone https://github.com/YOUR-USERNAME/AI-python-lead-scraper.git
 cd AI-python-lead-scraper
 ```
 
