@@ -66,6 +66,16 @@ class CampaignOut(CampaignBase):
 # ---------------------------------------------------------------------------
 
 
+class RunCreate(BaseModel):
+    """Optional body for POST /campaigns/{id}/runs. Omit to use campaign defaults."""
+
+    target_leads: int | None = Field(
+        default=None, ge=1, le=5000,
+        description="How many leads to generate this run, e.g. 100 / 500 / 1000. "
+                    "Overrides the campaign's target_leads_per_run for this run only.",
+    )
+
+
 class RunOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,6 +83,7 @@ class RunOut(BaseModel):
     campaign_id: int
     status: RunStatus
     iteration: int
+    target_leads: int | None
     stats: dict
     error: str | None
     started_at: datetime | None

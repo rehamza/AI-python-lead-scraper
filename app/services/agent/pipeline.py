@@ -5,7 +5,17 @@ One run executes an iterative loop:
     plan (Claude) -> search (provider chain) -> triage (dedupe/filter)
       -> qualify + extract (Claude, structured output) -> enrich (crawl emails)
       -> verify (MX/SMTP) -> persist (Postgres)
-      -> loop back to plan with feedback until target met or max iterations
+      -> loop back to plan with feedback until target met, iterations exhausted,
+         or two consecutive iterations yield no new leads (diminishing returns)
+
+Target lead count defaults to the campaign's target_leads_per_run, but a run
+can override it (see Run.target_leads / RunCreate) — e.g. "get me 500 this
+time" — in which case the iteration budget auto-scales (see
+_effective_max_iterations) so a bigger ask isn't capped by a small default.
+
+Duplicate leads are prevented per-campaign via a persistent dedupe key
+(company domain / LinkedIn URL / name) loaded fresh from the DB at the start
+of every run — so reruns of the same campaign only ever add NEW leads.
 
 This is deliberately a plain async pipeline rather than a LangGraph graph:
 the flow is linear with a single feedback edge, so explicit code stays easier
@@ -13,10 +23,12 @@ to debug, test and extend. All the "intelligence" lives in the Claude calls.
 """
 import asyncio
 import logging
+import math
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.database import SessionLocal
@@ -48,6 +60,15 @@ AGGREGATOR_DOMAINS = {
 
 # In-process registry of live run tasks (single-process deployment)
 RUNNING_TASKS: dict[int, asyncio.Task] = {}
+
+# Hard ceiling on iterations even when a run's target_leads override implies
+# many more — bounds cost/runtime for a mistaken huge request.
+MAX_ITERATIONS_CEILING = 25
+
+# Stop early if this many consecutive iterations save zero new leads — the
+# search space is exhausted for this campaign, so further iterations would
+# just burn LLM calls for no gain.
+ZERO_YIELD_STOP_THRESHOLD = 2
 
 
 def _now() -> datetime:
@@ -98,16 +119,19 @@ class AgentRun:
             await db.commit()
             brief = campaign.agent_brief()
             campaign_id, min_score = campaign.id, campaign.min_score
-            target = campaign.target_leads_per_run
-            max_iterations = campaign.max_iterations
+            target = run.target_leads or campaign.target_leads_per_run
+            max_iterations = self._effective_max_iterations(campaign, target)
             queries_per_iteration = campaign.queries_per_iteration
             results_per_query = campaign.results_per_query
 
-            # Pre-load existing dedupe keys so reruns find NEW leads
+            # Pre-load existing dedupe keys so reruns find NEW leads (this is the
+            # cross-run "memory" that keeps duplicate companies out of the same
+            # campaign — reloaded fresh from the DB at the start of every run).
             existing = await db.execute(select(Lead.dedupe_key).where(Lead.campaign_id == campaign_id))
             self.seen_keys = set(existing.scalars())
 
         saved_total = 0
+        consecutive_zero_yield = 0
         try:
             for iteration in range(1, max_iterations + 1):
                 iter_stats = {"iteration": iteration}
@@ -146,6 +170,12 @@ class AgentRun:
                 if saved_total >= target:
                     break
 
+                consecutive_zero_yield = consecutive_zero_yield + 1 if saved == 0 else 0
+                if consecutive_zero_yield >= ZERO_YIELD_STOP_THRESHOLD:
+                    log.info("run %s: stopping early after %d iterations with no new leads",
+                             self.run_id, consecutive_zero_yield)
+                    break
+
             await self._finish(RunStatus.completed)
         except asyncio.CancelledError:
             await self._finish(RunStatus.cancelled)
@@ -153,6 +183,18 @@ class AgentRun:
         except Exception as exc:  # noqa: BLE001 — persist any failure on the run row
             log.exception("run %s failed", self.run_id)
             await self._finish(RunStatus.failed, error=f"{type(exc).__name__}: {exc}")
+
+    @staticmethod
+    def _effective_max_iterations(campaign: Campaign, target: int) -> int:
+        """Scale up the iteration budget when a run asks for more leads than the
+        campaign's configured default, so e.g. requesting 1000 leads on a
+        campaign tuned for 50/run doesn't just stop after 3 iterations."""
+        base = campaign.max_iterations
+        default_target = campaign.target_leads_per_run
+        if target <= default_target or default_target <= 0:
+            return base
+        scale = math.ceil(target / default_target)
+        return min(base * scale, MAX_ITERATIONS_CEILING)
 
     # ------------------------------------------------------------------ #
     async def _plan(self, brief: dict, n_queries: int, saved: int, target: int) -> QueryPlan:
@@ -305,7 +347,18 @@ class AgentRun:
                     source_url=r.url[:1000],
                     source_snippet=r.snippet,
                 )
-                db.add(lead)
+                # Per-lead savepoint: the (campaign_id, dedupe_key) unique constraint
+                # is the last-resort backstop behind self.seen_keys — a race should
+                # never actually hit it, but if it does, skip just that one lead
+                # instead of losing the whole batch's commit.
+                try:
+                    async with db.begin_nested():
+                        db.add(lead)
+                        await db.flush()
+                except IntegrityError:
+                    log.warning("run %s: duplicate lead skipped (dedupe_key=%s)",
+                                self.run_id, e["dedupe_key"])
+                    continue
                 saved += 1
                 if e["email"]:
                     self.stats["emails_found"] += 1

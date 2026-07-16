@@ -1,0 +1,18 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+*.csv
+!*example*.csv
+.env
+searxng
+leadgen_state.json
+.DS_Store
+
+# Don't bake real business campaigns into a shared image by default.
+# Remove this line for your own private deployment if you want them included.
+app/local_seed.py
+
+enrich_emails.py
+softquorra_leadgen.py

@@ -1,0 +1,56 @@
+# One-command setup: PostgreSQL + the FastAPI app, no manual install of either.
+#
+#   cp .env.example .env   # fill in ANTHROPIC_API_KEY (and optional keys)
+#   docker compose up --build
+#   open http://localhost:8000/docs
+#
+# Compose reads a `.env` file in this directory automatically for the ${VAR}
+# substitutions below — that's the "get your .env from the example" step.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: leadgen
+    volumes:
+      - leadgen_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # Lets the app reach services on your host machine (e.g. a separately
+    # run SearXNG container) via host.docker.internal — works out of the box
+    # on Docker Desktop (Mac/Windows); this line makes it work on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Internal compose network — no Postgres setup or credentials to manage.
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/leadgen
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
+      SEARCH_PROVIDER_ORDER: ${SEARCH_PROVIDER_ORDER:-serper,ddg,searxng,brave}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      SEARXNG_URL: ${SEARXNG_URL:-}
+      SMTP_VERIFY_ENABLED: ${SMTP_VERIFY_ENABLED:-false}
+      SMTP_HELO_DOMAIN: ${SMTP_HELO_DOMAIN:-yourdomain.com}
+      SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:-verify@yourdomain.com}
+      AGENT_MAX_CONCURRENT_SEARCHES: ${AGENT_MAX_CONCURRENT_SEARCHES:-4}
+      AGENT_MAX_CONCURRENT_CRAWLS: ${AGENT_MAX_CONCURRENT_CRAWLS:-8}
+      AGENT_QUALIFY_BATCH_SIZE: ${AGENT_QUALIFY_BATCH_SIZE:-10}
+    ports:
+      - "8000:8000"
+
+volumes:
+  leadgen_pgdata:

@@ -5,14 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Campaign, Run, RunStatus
-from app.schemas import RunOut
+from app.schemas import RunCreate, RunOut
 from app.services.agent.pipeline import cancel_run_task, start_run_task
 
 router = APIRouter(prefix="/api", tags=["runs"])
 
 
 @router.post("/campaigns/{campaign_id}/runs", response_model=RunOut, status_code=202)
-async def start_run(campaign_id: int, db: AsyncSession = Depends(get_db)):
+async def start_run(campaign_id: int, payload: RunCreate | None = None, db: AsyncSession = Depends(get_db)):
+    """Start an agent run. Optionally pass {"target_leads": 500} to override
+    the campaign's default lead count for this run only (e.g. 100 / 500 / 1000)."""
     campaign = await db.get(Campaign, campaign_id)
     if not campaign:
         raise HTTPException(404, "Campaign not found")
@@ -28,7 +30,11 @@ async def start_run(campaign_id: int, db: AsyncSession = Depends(get_db)):
     if active.first() is not None:
         raise HTTPException(409, "A run is already in progress for this campaign")
 
-    run = Run(campaign_id=campaign_id, status=RunStatus.queued)
+    run = Run(
+        campaign_id=campaign_id,
+        status=RunStatus.queued,
+        target_leads=payload.target_leads if payload else None,
+    )
     db.add(run)
     await db.commit()
     await db.refresh(run)

@@ -96,6 +96,9 @@ class Run(Base):
     campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id", ondelete="CASCADE"), index=True)
     status: Mapped[RunStatus] = mapped_column(Enum(RunStatus), default=RunStatus.queued, index=True)
     iteration: Mapped[int] = mapped_column(Integer, default=0)
+    # Per-run override of campaign.target_leads_per_run (e.g. "just get me 500 this time").
+    # Null means "use the campaign's configured default".
+    target_leads: Mapped[int | None] = mapped_column(Integer, nullable=True)
     stats: Mapped[dict] = mapped_column(JSON, default=dict)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

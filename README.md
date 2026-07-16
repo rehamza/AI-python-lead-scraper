@@ -16,12 +16,61 @@ Campaign-driven by design: adding a new lead-gen use case is a single API call, 
 
 ---
 
+## Get started (no coding experience needed)
+
+### Step 1 — Get the code
+
+**Don't know git?** On the [repo page](https://github.com/rehamza/AI-python-lead-scraper), click
+the green **Code** button → **Download ZIP**, then unzip it anywhere on your computer.
+
+**Know git?**
+
+```bash
+git clone https://github.com/rehamza/AI-python-lead-scraper.git
+cd AI-python-lead-scraper
+```
+
+### Step 2 — Run it
+
+Open a terminal in that folder (Mac: right-click the folder → *New Terminal at Folder*;
+Windows: Shift + right-click → *Open PowerShell window here*) and pick one path:
+
+**Option A — Docker (recommended, easiest).** Installs and configures PostgreSQL for you — you
+never touch a database.
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) if you don't have it.
+2. In the project folder:
+   ```bash
+   cp .env.example .env
+   ```
+3. Open `.env` in any text editor and paste your [Anthropic API key](https://console.anthropic.com/)
+   after `ANTHROPIC_API_KEY=`. Save the file.
+4. Back in the terminal:
+   ```bash
+   docker compose up --build
+   ```
+5. Once it says the app started, open **http://localhost:8000/docs** in your browser.
+
+**Option B — Manual (Python + your own PostgreSQL).** More control, more steps — see the full
+[Quickstart](#quickstart) below.
+
+### Step 3 — Use it without writing any code
+
+Open **http://localhost:8000/docs** — this is an interactive control panel FastAPI generates
+automatically. Click any endpoint to expand it, click **Try it out**, fill in the boxes, click
+**Execute**. That's the whole interface: start a run, check progress, list leads, export a CSV —
+all by clicking, no `curl` or coding required. (The `curl` commands elsewhere in this README are
+just the same requests written as copy-pasteable text, for anyone who prefers a terminal.)
+
+---
+
 ## Table of contents
 
 - [Features](#features)
 - [Architecture](#architecture)
 - [Search providers](#search-providers--the-free-serper-answer)
 - [Email verification](#email-verification-no-paid-apis)
+- [How many leads it generates, and duplicate protection](#how-many-leads-it-generates-and-duplicate-protection)
 - [Quickstart](#quickstart)
 - [Usage](#usage)
 - [Creating a new campaign](#creating-a-new-campaign-no-code-changes)
@@ -44,6 +93,9 @@ Campaign-driven by design: adding a new lead-gen use case is a single API call, 
   catch-all detection — no paid verification API.
 - ⚙️ **Campaign-driven config** — every lead-gen use case (product, ICP, regions, positive/negative
   signals, target score) is a row, not a code change. Add a new one via `POST /api/campaigns`.
+- 🎯 **Configurable lead count per run** — ask for 100, 500, 1000+ leads; the agent scales its
+  effort automatically instead of stopping at a fixed default.
+- 🧠 **Duplicate-safe** — persistent, per-campaign memory means reruns only ever add new leads.
 - 🐘 **PostgreSQL-backed**, fully async (SQLAlchemy 2.0 + psycopg3).
 - 📤 **CSV export** with score/email-confidence filters, ready for any outreach tool.
 
@@ -119,7 +171,10 @@ docker restart searxng
 curl "http://localhost:8888/search?q=test&format=json"   # should return JSON, not an error
 ```
 
-Then set `SEARXNG_URL=http://localhost:8888` in `.env`.
+Then set `SEARXNG_URL=http://localhost:8888` in `.env` — **unless** you're running the app itself
+via `docker compose up` (see [Get started](#get-started-no-coding-experience-needed)), in which
+case use `SEARXNG_URL=http://host.docker.internal:8888` instead, since the app runs in its own
+container network and `localhost` there means "inside that container," not your machine.
 
 ### Email verification (no paid APIs)
 
@@ -138,7 +193,35 @@ Then set `SEARXNG_URL=http://localhost:8888` in `.env`.
 > outbound port 25 anyway, so the verifier degrades to MX-only automatically if run locally.)
 > Filter exports with `sendable_only=true` before any cold outreach either way.
 
----
+## How many leads it generates, and duplicate protection
+
+**Choosing a lead count.** Every campaign has a default (`target_leads_per_run`, e.g. 50), but
+you can ask for a specific amount on any individual run — 100, 500, 1000, whatever you need —
+without changing the campaign:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/campaigns/1/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"target_leads": 500}'
+```
+
+(Or in the [interactive docs](#step-3--use-it-without-writing-any-code): expand `POST
+/api/campaigns/{campaign_id}/runs`, *Try it out*, type `{"target_leads": 500}` in the request
+body box, *Execute*.)
+
+When you ask for more than the campaign's default, the agent automatically runs more
+plan→search→qualify iterations to try to reach it — it doesn't just stop after the campaign's
+usual 3 iterations because you asked for 20x the leads. There's a safety ceiling (25 iterations)
+so a mistaken huge number can't run away with your API budget, and the run stops early if two
+iterations in a row find zero new qualifying leads (the search space for that ICP is exhausted —
+no point burning more LLM calls on it). Bigger asks cost more and take longer; see
+[Cost & tuning notes](#cost--tuning-notes).
+
+**No duplicates.** Every lead is saved with a dedupe key (company domain, or LinkedIn URL, or
+name if neither is available). Before a run starts, it loads every dedupe key already saved for
+that campaign from the database — this is the "memory": it's not in-process state that resets
+when the server restarts, it's a persistent database record, so **rerunning the same campaign
+next week only adds leads you don't already have**, however many runs happen in between.
 
 ## Quickstart
 
@@ -147,9 +230,26 @@ Then set `SEARXNG_URL=http://localhost:8888` in `.env`.
 - Python 3.11+
 - PostgreSQL 14+ (local install or Docker)
 - An [Anthropic API key](https://console.anthropic.com/) — the agent's brain
-- Docker (optional, only for self-hosting SearXNG)
+- Docker (optional, only for self-hosting SearXNG, or if you use Option A below)
 
-### 1. Clone and install
+### Option A — Docker Compose (recommended)
+
+Handles PostgreSQL for you — no local Python or Postgres install needed at all.
+
+```bash
+cp .env.example .env
+# edit .env, paste your ANTHROPIC_API_KEY
+
+docker compose up --build
+```
+
+That's it — open **http://127.0.0.1:8000/docs**. Data persists in a Docker volume across
+restarts (`docker compose down` stops it, `docker compose up` brings it back with the same data;
+`docker compose down -v` wipes the database volume too).
+
+### Option B — Manual (Python + your own PostgreSQL)
+
+#### 1. Clone and install
 
 ```bash
 git clone https://github.com/rehamza/AI-python-lead-scraper.git
@@ -159,17 +259,18 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-### 2. Database
+#### 2. Database
 
 Pick whichever Postgres you have — either works, the app only needs a connection string.
 
-**Option A — local PostgreSQL:**
+**Local PostgreSQL:**
 
 ```bash
 createdb leadgen
 ```
 
-**Option B — Docker:**
+**Or a single Docker container** (this is *not* the same as Option A above — this runs just
+Postgres, and you still run the app yourself with uvicorn):
 
 ```bash
 docker run -d --name leadgen-postgres \
@@ -177,7 +278,7 @@ docker run -d --name leadgen-postgres \
   -p 5432:5432 postgres:16
 ```
 
-### 3. Configure
+#### 3. Configure
 
 ```bash
 cp .env.example .env
@@ -193,7 +294,7 @@ Edit `.env`:
 | `SERPER_API_KEY` / `BRAVE_API_KEY` / `SEARXNG_URL` | — | Optional search providers — the free `ddg` provider works with none of these set |
 | `SMTP_VERIFY_ENABLED` | — | Off by default — see [email verification](#email-verification-no-paid-apis) |
 
-### 4. Run
+#### 4. Run
 
 ```bash
 .venv/bin/uvicorn app.main:app --reload
@@ -210,8 +311,11 @@ there's something to run immediately.
 # See campaigns (the "dynamic forms")
 curl http://127.0.0.1:8000/api/campaigns
 
-# Start an agent run for the example campaign
+# Start an agent run for the example campaign (uses the campaign's default lead count)
 curl -X POST http://127.0.0.1:8000/api/campaigns/1/runs
+
+# ...or ask for a specific number of leads this run
+curl -X POST http://127.0.0.1:8000/api/campaigns/1/runs -H 'Content-Type: application/json' -d '{"target_leads": 1000}'
 
 # Watch progress (stats update live per iteration)
 curl http://127.0.0.1:8000/api/runs/1
@@ -309,8 +413,8 @@ running it, not just you.
 | GET | `/api/providers` | search-provider chain status |
 | POST/GET | `/api/campaigns` | create / list campaigns |
 | GET/PATCH/DELETE | `/api/campaigns/{id}` | manage one campaign |
-| POST | `/api/campaigns/{id}/runs` | **start an agent run** (202, runs in background) |
-| GET | `/api/runs`, `/api/runs/{id}` | run status + live stats |
+| POST | `/api/campaigns/{id}/runs` | **start an agent run** — optional body `{"target_leads": N}` (202, runs in background) |
+| GET | `/api/runs`, `/api/runs/{id}` | run status + live stats (includes `target_leads` if set) |
 | POST | `/api/runs/{id}/cancel` | cancel a running agent |
 | GET | `/api/leads` | filter: `campaign_id, run_id, min_score, email_status, sendable_only, search, limit, offset` |
 | GET | `/api/leads/export` | CSV download (same filters) |
@@ -337,6 +441,8 @@ app/
     └── enrichment/
         ├── crawler.py         async site crawl for published emails
         └── verifier.py        MX + SMTP + catch-all verification
+
+Dockerfile, docker-compose.yml   one-command setup (app + PostgreSQL)
 ```
 
 ## Cost & tuning notes
@@ -346,8 +452,10 @@ app/
   Set `ANTHROPIC_MODEL=claude-opus-4-8` in `.env` if you want Opus-level judgment on ambiguous
   ICPs, or `claude-haiku-4-5` to cut cost further (spot-check qualification accuracy first —
   cheaper models are more likely to let weak leads through).
-- A run makes ~`max_iterations × (1 planner call + ceil(results/batch_size) qualifier calls)`.
-  Defaults: 3 iterations × 12 queries × 10 results ⇒ ~37 LLM calls worst case.
+- A run makes ~`iterations × (1 planner call + ceil(results/batch_size) qualifier calls)`.
+  Defaults: 3 iterations × 12 queries × 10 results ⇒ ~37 LLM calls worst case. Asking for a much
+  larger `target_leads` scales the iteration count (and therefore cost) up proportionally, capped
+  at 25 iterations — see [How many leads it generates](#how-many-leads-it-generates-and-duplicate-protection).
 - **Search volume**: with only free `ddg`, keep `queries_per_iteration ≤ 15` to stay under the
   radar; for scale, self-host SearXNG (unlimited) or add Serper credits.
 - Single-process by design (background runs use `asyncio.Task`). If you later need multiple
