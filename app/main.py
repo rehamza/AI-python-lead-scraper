@@ -5,11 +5,14 @@ Run with:
 """
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
+from sqlalchemy import update
 
 from app.api import campaigns, leads, providers, runs
 from app.database import SessionLocal, engine, init_db
+from app.models import Run, RunStatus
 from app.seed import seed_campaigns
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -23,6 +26,21 @@ async def lifespan(app: FastAPI):
         created = await seed_campaigns(db)
         if created:
             log.info("seeded %d default campaign(s)", created)
+        # Runs execute as in-process asyncio tasks, so any run still marked
+        # queued/running at boot was killed by a restart and will never resume —
+        # mark it failed so it doesn't show as "running" forever.
+        orphaned = await db.execute(
+            update(Run)
+            .where(Run.status.in_([RunStatus.queued, RunStatus.running]))
+            .values(
+                status=RunStatus.failed,
+                error="Interrupted by server restart",
+                finished_at=datetime.now(timezone.utc),
+            )
+        )
+        await db.commit()
+        if orphaned.rowcount:
+            log.info("marked %d orphaned run(s) as failed after restart", orphaned.rowcount)
     yield
     await engine.dispose()
 

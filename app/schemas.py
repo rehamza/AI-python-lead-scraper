@@ -125,13 +125,22 @@ class LeadOut(BaseModel):
 
 # ---------------------------------------------------------------------------
 # LLM structured-output schemas (used with client.messages.parse)
+#
+# IMPORTANT: every field here must be REQUIRED (no defaults). The structured-
+# outputs API compiles the schema into a grammar server-side, and each
+# optional field counts against a hard complexity budget — a schema with many
+# optional fields is rejected with 400 "Schema is too complex" or "Grammar
+# compilation timed out". Required fields cost nothing: the grammar simply
+# forces the model to emit every field, using "" / 0 for unknowns.
+# Numeric bounds (ge/le) are also unsupported on the wire — express ranges in
+# the description and clamp in code instead.
 # ---------------------------------------------------------------------------
 
 
 class PlannedQuery(BaseModel):
     query: str = Field(description="A ready-to-run web search query / dork")
-    region: str = Field(default="", description="Region this query targets, if any")
-    intent: str = Field(default="", description="What kind of lead this query is designed to surface")
+    region: str = Field(description='Region this query targets, or "" if global')
+    intent: str = Field(description='What kind of lead this query is designed to surface, or ""')
 
 
 class QueryPlan(BaseModel):
@@ -141,18 +150,18 @@ class QueryPlan(BaseModel):
 class LeadAssessment(BaseModel):
     result_index: int = Field(description="Index of the search result this assessment refers to")
     is_lead: bool = Field(description="True only if this is a genuine potential customer for the campaign")
-    score: int = Field(default=0, ge=0, le=100, description="Fit score 0-100")
-    company_name: str = ""
-    website: str = Field(default="", description="Company website URL if identifiable, else empty")
-    contact_name: str = Field(default="", description="Founder/decision-maker full name if present")
-    contact_role: str = ""
-    linkedin_url: str = ""
-    country: str = ""
-    sector: str = ""
-    funding_stage: str = ""
-    team_size: str = ""
-    fit_reason: str = Field(default="", description="1-2 sentences: why they would buy / outsource")
-    recommended_service: str = Field(default="", description="Which of the campaign's services fits best")
+    score: int = Field(description="Fit score, an integer from 0 to 100")
+    company_name: str = Field(description='Company name, or "" if not identifiable')
+    website: str = Field(description='Company website URL if identifiable, else ""')
+    contact_name: str = Field(description='Founder/decision-maker full name if present, else ""')
+    contact_role: str = Field(description='Contact role/title, or ""')
+    linkedin_url: str = Field(description='LinkedIn URL if present, else ""')
+    country: str = Field(description='Country, or ""')
+    sector: str = Field(description='Sector/industry, or ""')
+    funding_stage: str = Field(description='Funding stage if known, else ""')
+    team_size: str = Field(description='Team size if known, else ""')
+    fit_reason: str = Field(description="1-2 sentences: why they would buy / outsource")
+    recommended_service: str = Field(description='Which of the campaign\'s services fits best, or ""')
 
 
 class QualifiedBatch(BaseModel):

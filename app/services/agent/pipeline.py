@@ -27,6 +27,7 @@ import math
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
+import anthropic
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -266,10 +267,17 @@ class AgentRun:
                     prompt=prompts.qualifier_prompt(brief, payload),
                     output_format=QualifiedBatch,
                 )
+            except anthropic.BadRequestError as exc:
+                # A 400 (bad schema/request) is deterministic — every remaining
+                # batch would fail identically, so abort the run with a clear
+                # error instead of burning searches and planner calls on
+                # iterations that can never qualify anything.
+                raise RuntimeError(f"qualification request rejected by the API: {exc}") from exc
             except Exception as exc:  # noqa: BLE001 — skip a bad batch, keep the run alive
                 log.warning("qualification batch failed: %s", exc)
                 continue
             for a in parsed.assessments:
+                a.score = max(0, min(100, a.score))
                 if not a.is_lead or a.score < min_score:
                     continue
                 if 0 <= a.result_index < len(batch):

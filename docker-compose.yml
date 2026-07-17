@@ -39,7 +39,7 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/leadgen
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
-      SEARCH_PROVIDER_ORDER: ${SEARCH_PROVIDER_ORDER:-serper,ddg,searxng,brave}
+      SEARCH_PROVIDER_ORDER: ${SEARCH_PROVIDER_ORDER:-ddg,searxng,serper,brave}
       SERPER_API_KEY: ${SERPER_API_KEY:-}
       BRAVE_API_KEY: ${BRAVE_API_KEY:-}
       SEARXNG_URL: ${SEARXNG_URL:-}

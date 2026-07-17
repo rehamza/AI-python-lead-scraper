@@ -132,20 +132,24 @@ just the same requests written as copy-pasteable text, for anyone who prefers a 
         ┌──────────────┬──────────────┬──────┴───────┐
         ▼              ▼              ▼              ▼
    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐
-   │  serper │ →  │   ddg   │ →  │ searxng │ →  │  brave  │   (auto-fallback chain,
-   │  (paid) │    │  (FREE) │    │  (FREE, │    │  (free  │    order set in .env)
-   └─────────┘    └─────────┘    │self-host│    │  tier)  │
-                                 └─────────┘    └─────────┘
+   │   ddg   │ →  │ searxng │ →  │  serper │ →  │  brave  │   (auto-fallback chain,
+   │  (FREE) │    │  (FREE, │    │  (paid) │    │  (free  │    order set in .env)
+   └─────────┘    │self-host│    └─────────┘    │  tier)  │
+                  └─────────┘                   └─────────┘
 ```
 
 ### Search providers — the "free Serper" answer
 
 | Provider | Cost | Setup | Notes |
 |---|---|---|---|
-| `ddg` (ddgs lib) | **Free, no key** | none | Multi-engine metasearch (DuckDuckGo/Google/Bing HTML). Default free provider. Rate-limited politely by the app. |
+| `ddg` (ddgs lib) | **Free, no key** | none | Multi-engine metasearch (DuckDuckGo/Google/Bing HTML). First in the default order. Rate-limited politely by the app. |
 | `searxng` | **Free, unlimited** | see below | Best free option at volume — your own metasearch server. Set `SEARXNG_URL`. |
-| `brave` | Free tier (2k/mo) | API key | Clean API, good quality. |
-| `serper` | Paid ($) | API key | Real Google SERP — highest accuracy. Used first when configured. |
+| `serper` | Paid ($) | API key | Real Google SERP — highest accuracy. Paid fallback when the free providers fail. |
+| `brave` | Free tier (2k/mo) | API key | Clean API, good quality. Last resort in the default order. |
+
+The default order is **free-first** (`ddg,searxng,serper,brave`): the free providers absorb
+the load and your paid Serper credits are only spent when they're down or rate-limited.
+Prefer accuracy over cost? Set `SEARCH_PROVIDER_ORDER=serper,ddg,searxng,brave` in `.env`.
 
 The chain tries providers in `SEARCH_PROVIDER_ORDER`; unconfigured ones are skipped and a
 provider that fails 3× goes into a 5-minute cooldown, so runs never stall.

@@ -14,8 +14,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-4-8"
 
-    # Search providers
-    search_provider_order: str = "serper,ddg,searxng,brave"
+    # Search providers — free-first: DDG and self-hosted SearXNG take the load,
+    # paid Serper and rate-limited Brave are fallbacks when the free ones fail.
+    search_provider_order: str = "ddg,searxng,serper,brave"
     serper_api_key: str = ""
     brave_api_key: str = ""
     searxng_url: str = ""
