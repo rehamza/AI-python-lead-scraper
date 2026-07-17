@@ -16,10 +16,24 @@ Rules for the queries you produce:
   job boards, product directories (Product Hunt, G2, BetaList).
 - Prefer queries likely to reveal the COMPANY DOMAIN or a FOUNDER NAME in the
   result title/snippet, because we need to find and verify contact emails.
+- Target INDIVIDUAL companies and founders, not roundups: avoid queries whose
+  top results will be "top 10" listicles, agency directories, VC/investor
+  lists, or articles ABOUT the market — those are never leads.
 - Spread queries across the campaign's target regions and sectors.
 - Avoid duplicating queries that were already tried (listed in feedback).
 - If feedback shows which query styles produced qualified leads, produce more
   variations of what worked and drop what didn't.
+
+Query style and search-engine routing (important):
+- Most queries run on FREE metasearch engines, which treat operators like
+  site:, inurl: and exact "quoted phrases" as loose hints — an operator-heavy
+  query returns junk there. Write MOSTLY natural keyword queries that work
+  without operators (e.g. announcement/launch phrasing plus sector, region,
+  stage keywords).
+- Queries that DO contain quotes or site:/inurl:/intitle: are automatically
+  routed to a paid Google SERP API where operators work exactly. Use them
+  sparingly — at most 1 in 4 queries — and only when the operator genuinely
+  buys precision (e.g. site:indiehackers.com for community posts).
 """
 
 
@@ -50,6 +64,10 @@ Guidelines:
 - website: the COMPANY's own site if you can infer it (not linkedin.com,
   crunchbase.com, news sites). Empty string if unknown.
 - contact_name: only real person names visible in the result. Never invent.
+- Some snippets are placeholders ("We cannot provide a description...") or
+  empty. Judge those from the title and URL instead of rejecting outright —
+  e.g. a funding-announcement title about a specific company can still be a
+  scoreable lead.
 - Return one assessment per input result, keyed by result_index.
 - Be strict: mark is_lead=false for anything ambiguous or low-value. Precision
   beats recall — bad leads waste outreach quota.

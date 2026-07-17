@@ -2,6 +2,13 @@
 
 A provider that errors repeatedly is put in a cooldown so a dead/exhausted
 provider (e.g. Serper credits used up, DDG rate-limited) doesn't stall runs.
+
+Smart routing: queries that rely on search operators (site:, inurl:, exact
+"quoted phrases") only work reliably on a real Google SERP, so those are
+routed to serper first when it's configured — free metasearch engines treat
+operators as loose hints and return junk for them. Natural keyword queries
+keep the configured (free-first) order, so paid credits are only spent where
+they actually buy precision.
 """
 import logging
 import time
@@ -24,6 +31,13 @@ _PROVIDERS: dict[str, type[SearchProvider]] = {
 
 _COOLDOWN_SECONDS = 300
 _FAILURES_BEFORE_COOLDOWN = 3
+
+# Operators that free metasearch engines don't honor reliably
+_PRECISION_HINTS = ("site:", "inurl:", "intitle:", '"')
+
+
+def needs_precision_engine(query: str) -> bool:
+    return any(hint in query for hint in _PRECISION_HINTS)
 
 
 class SearchChain:
@@ -49,9 +63,18 @@ class SearchChain:
     def _usable(self, provider: SearchProvider) -> bool:
         return provider.available() and self._cooldown_until.get(provider.name, 0) <= time.monotonic()
 
+    def _order_for(self, query: str) -> list[SearchProvider]:
+        """Providers to try for this query. Operator-heavy queries go to serper
+        first (real Google SERP honors them); everything else keeps the
+        configured free-first order."""
+        if not needs_precision_engine(query):
+            return self.providers
+        serper = [p for p in self.providers if p.name == "serper"]
+        return serper + [p for p in self.providers if p.name != "serper"]
+
     async def search(self, query: str, *, region: str = "", max_results: int = 10) -> list[SearchResult]:
         last_error: Exception | None = None
-        for provider in self.providers:
+        for provider in self._order_for(query):
             if not self._usable(provider):
                 continue
             try:

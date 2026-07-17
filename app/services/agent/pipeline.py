@@ -24,6 +24,7 @@ to debug, test and extend. All the "intelligence" lives in the Claude calls.
 import asyncio
 import logging
 import math
+import re
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -82,8 +83,15 @@ def _root_domain(url: str) -> str:
     return ".".join(parts[-2:]) if len(parts) >= 2 else netloc
 
 
-def _dedupe_key(assessment: LeadAssessment) -> str:
-    domain = extract_domain(assessment.website)
+def _name_slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def _dedupe_key(assessment: LeadAssessment, domain: str = "") -> str:
+    """Canonical per-campaign identity: company domain when known (pass the
+    post-discovery domain so reruns that find the site directly still dedupe),
+    else LinkedIn URL, else normalized company name."""
+    domain = domain or extract_domain(assessment.website)
     if domain and _root_domain(f"https://{domain}") not in AGGREGATOR_DOMAINS:
         return domain
     if assessment.linkedin_url:
@@ -102,6 +110,7 @@ class AgentRun:
             "candidates_after_triage": 0,
             "qualified": 0,
             "leads_saved": 0,
+            "websites_discovered": 0,
             "emails_found": 0,
             "emails_verified": 0,
             "iterations": [],
@@ -276,15 +285,53 @@ class AgentRun:
             except Exception as exc:  # noqa: BLE001 — skip a bad batch, keep the run alive
                 log.warning("qualification batch failed: %s", exc)
                 continue
+            batch_kept = 0
+            near_misses: list[str] = []
             for a in parsed.assessments:
                 a.score = max(0, min(100, a.score))
                 if not a.is_lead or a.score < min_score:
+                    if a.is_lead and a.company_name:
+                        near_misses.append(f"{a.company_name}={a.score}")
                     continue
                 if 0 <= a.result_index < len(batch):
                     candidate = batch[a.result_index]
                     qualified.append({"assessment": a, "candidate": candidate})
                     self.query_yield[candidate["query"]] = self.query_yield.get(candidate["query"], 0) + 1
+                    batch_kept += 1
+            top_scores = sorted((a.score for a in parsed.assessments), reverse=True)[:5]
+            log.info(
+                "run %s: qualified %d/%d in batch (min_score=%d, top scores %s%s)",
+                self.run_id, batch_kept, len(parsed.assessments), min_score, top_scores,
+                f", near misses: {', '.join(near_misses[:3])}" if near_misses else "",
+            )
         return qualified
+
+    async def _discover_domain(self, company_name: str, sector: str) -> str:
+        """One extra (free) search to find the company's own website when the
+        qualifying snippet didn't reveal it — funding news links the news
+        outlet, not the company. Only accept a domain whose name matches the
+        company's: a wrong domain means crawling the wrong company's emails,
+        which is worse than having no domain at all."""
+        name = company_name.strip()
+        slug = _name_slug(name)
+        if len(slug) < 4:  # too short to match a domain confidently
+            return ""
+        query = f"{name} {sector} official website".strip()  # no operators -> free engines
+        try:
+            results = await get_search_chain().search(query, max_results=6)
+        except Exception as exc:  # noqa: BLE001 — discovery is best-effort
+            log.warning("website discovery failed for %r: %s", name, exc)
+            return ""
+        for r in results:
+            host = extract_domain(r.url)
+            if not host or _root_domain(r.url) in AGGREGATOR_DOMAINS:
+                continue
+            label = _name_slug(host.split(".")[0])
+            if len(label) >= 4 and (slug in label or label in slug):
+                self.stats["websites_discovered"] += 1
+                log.info("run %s: discovered website %s for %r", self.run_id, host, name)
+                return host
+        return ""
 
     async def _enrich_verify_persist(self, qualified: list[dict], campaign_id: int) -> int:
         semaphore = asyncio.Semaphore(self.settings.agent_max_concurrent_crawls)
@@ -292,14 +339,22 @@ class AgentRun:
         async def enrich_one(item: dict) -> dict | None:
             a: LeadAssessment = item["assessment"]
             result: SearchResult = item["candidate"]["result"]
-            key = _dedupe_key(a)
-            if key in self.seen_keys:
-                return None
-            self.seen_keys.add(key)
 
             domain = extract_domain(a.website)
             if domain and _root_domain(f"https://{domain}") in AGGREGATOR_DOMAINS:
                 domain = ""
+            if not domain:
+                if _dedupe_key(a) in self.seen_keys:  # already known — don't waste a search
+                    return None
+                domain = await self._discover_domain(a.company_name, a.sector)
+
+            key = _dedupe_key(a, domain=domain)
+            if key == "name:":  # no domain, no LinkedIn, no company name — nothing to contact
+                log.info("run %s: skipping unactionable lead from %s", self.run_id, result.url)
+                return None
+            if key in self.seen_keys:
+                return None
+            self.seen_keys.add(key)
 
             email, status, candidates_audit, source = "", EmailStatus.not_found, [], ""
             if domain:

@@ -151,6 +151,13 @@ The default order is **free-first** (`ddg,searxng,serper,brave`): the free provi
 the load and your paid Serper credits are only spent when they're down or rate-limited.
 Prefer accuracy over cost? Set `SEARCH_PROVIDER_ORDER=serper,ddg,searxng,brave` in `.env`.
 
+**Smart operator routing:** free metasearch engines treat operators like `site:` and exact
+`"quoted phrases"` as loose hints, so operator-heavy queries return junk on them. Queries
+containing operators are automatically routed to Serper first (a real Google SERP honors
+them exactly), while natural keyword queries keep the free-first order — and the query
+planner is instructed to write mostly natural queries and spend operator queries sparingly.
+Paid credits only go where they actually buy precision.
+
 The chain tries providers in `SEARCH_PROVIDER_ORDER`; unconfigured ones are skipped and a
 provider that fails 3× goes into a 5-minute cooldown, so runs never stall.
 
