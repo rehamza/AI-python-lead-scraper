@@ -13,3 +13,4 @@ searxng/
 # Copy app/local_seed.py.example -> app/local_seed.py and fill in your own —
 # it's loaded automatically on boot if present, never committed.
 app/local_seed.py
+.claude/
