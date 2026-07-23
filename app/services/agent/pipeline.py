@@ -57,7 +57,9 @@ AGGREGATOR_DOMAINS = {
     "google.com", "wikipedia.org", "glassdoor.com", "indeed.com", "producthunt.com",
     "g2.com", "betalist.com", "pitchbook.com", "apollo.io", "zoominfo.com",
     "clutch.co", "upwork.com", "quora.com", "substack.com", "eu-startups.com",
-    "tech.eu", "sifted.eu", "dealroom.co", "f6s.com",
+    "tech.eu", "sifted.eu", "dealroom.co", "f6s.com", "topstartups.io",
+    "startups.com", "tracxn.com", "goodfirms.co", "sortlist.com", "capterra.com",
+    "trustpilot.com", "builtin.com", "failory.com", "seedtable.com",
 }
 
 # In-process registry of live run tasks (single-process deployment)

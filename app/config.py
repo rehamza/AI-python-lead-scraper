@@ -11,15 +11,20 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://localhost:5432/leadgen"
 
     # LLM
-    llm_provider: str = "groq"  # "groq" or "anthropic"
+    llm_provider: str = "gemini"  # "gemini", "groq", or "anthropic"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-4-8"
     groq_api_key: str = ""
-    groq_model: str = "openai/gpt-oss-120b"
+    groq_model: str = "llama-3.3-70b-versatile"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-flash"
 
     @property
     def active_llm_model(self) -> str:
-        if self.llm_provider.lower() == "groq":
+        provider = self.llm_provider.lower().strip()
+        if provider == "gemini":
+            return self.gemini_model
+        if provider == "groq":
             return self.groq_model
         return self.anthropic_model
 

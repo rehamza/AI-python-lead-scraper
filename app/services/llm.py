@@ -1,4 +1,4 @@
-"""LLM abstraction supporting Anthropic Claude and Groq with Pydantic structured outputs."""
+"""LLM abstraction supporting Gemini, Groq, and Anthropic Claude with Pydantic structured outputs."""
 from functools import lru_cache
 import logging
 from typing import TypeVar
@@ -31,11 +31,56 @@ async def structured(
 ) -> T:
     """One structured-output call: returns a validated instance of output_format.
 
-    Routes dynamically to Anthropic or Groq based on LLM_PROVIDER in settings.
+    Routes dynamically to Gemini, Groq, or Anthropic based on LLM_PROVIDER in settings.
     """
     settings = get_settings()
     provider = settings.llm_provider.lower().strip()
 
+    # 1. Google Gemini
+    if provider == "gemini":
+        api_key = settings.gemini_api_key.strip()
+        if not api_key:
+            raise ValueError(
+                "GEMINI_API_KEY is not set or empty in .env. Please set GEMINI_API_KEY=... in your .env file."
+            )
+
+        schema_dict = output_format.model_json_schema()
+        gemini_system = (
+            f"{system}\n\n"
+            f"CRITICAL REQUIREMENT: You MUST output a single valid JSON object adhering strictly to the JSON schema below.\n"
+            f"Do not include any Markdown text formatting or extra text outside of the JSON object.\n"
+            f"JSON Schema:\n{schema_dict}"
+        )
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent?key={api_key}"
+        payload = {
+            "system_instruction": {
+                "parts": [{"text": gemini_system}]
+            },
+            "contents": [
+                {"role": "user", "parts": [{"text": prompt}]}
+            ],
+            "generationConfig": {
+                "response_mime_type": "application/json",
+                "temperature": 0.2,
+                "maxOutputTokens": min(max_tokens, 8192),
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as http_client:
+            resp = await http_client.post(url, json=payload)
+            if resp.status_code != 200:
+                log.error("Gemini API error (%d): %s", resp.status_code, resp.text)
+                resp.raise_for_status()
+            data = resp.json()
+            try:
+                raw_content = data["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError) as err:
+                log.error("Gemini response missing content: %s", data)
+                raise RuntimeError(f"Invalid response structure from Gemini API: {data}") from err
+            return output_format.model_validate_json(raw_content)
+
+    # 2. Groq
     if provider == "groq":
         schema_dict = output_format.model_json_schema()
         groq_system = (
@@ -45,9 +90,15 @@ async def structured(
             f"JSON Schema:\n{schema_dict}"
         )
 
-        tokens = min(max_tokens, 8192)
+        api_key = settings.groq_api_key.strip()
+        if not api_key:
+            raise ValueError(
+                "GROQ_API_KEY is not set or empty in .env. Please set GROQ_API_KEY=gsk_... in your .env file."
+            )
+
+        tokens = min(max_tokens, 4096)
         headers = {
-            "Authorization": f"Bearer {settings.groq_api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         payload = {
@@ -67,12 +118,14 @@ async def structured(
                 headers=headers,
                 json=payload,
             )
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                log.error("Groq API error (%d): %s", resp.status_code, resp.text)
+                resp.raise_for_status()
             data = resp.json()
             raw_content = data["choices"][0]["message"]["content"] or "{}"
             return output_format.model_validate_json(raw_content)
 
-    # Default: Anthropic Claude
+    # 3. Default: Anthropic Claude
     client = get_anthropic_client()
     response = await client.messages.parse(
         model=settings.anthropic_model,

@@ -37,7 +37,12 @@ services:
     environment:
       # Internal compose network — no Postgres setup or credentials to manage.
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/leadgen
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5}
       SEARCH_PROVIDER_ORDER: ${SEARCH_PROVIDER_ORDER:-ddg,searxng,serper,brave}
       SERPER_API_KEY: ${SERPER_API_KEY:-}

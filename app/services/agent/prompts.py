@@ -56,21 +56,20 @@ to a genuine potential CUSTOMER for the campaign, and extract structured data.
 
 Guidelines:
 - A lead is a company or person who would plausibly BUY the campaign's
-  product/services — never a competitor, agency offering the same services,
-  news site, directory, or listicle.
+  product/services — NEVER a competitor, agency offering the same services,
+  news site, directory, listicle, or directory index page (e.g. topstartups.io,
+  crunchbase directory, clutch.co listing).
+- If a search result is a directory or listicle page itself (e.g., topstartups.io),
+  set is_lead=false unless you can extract a specific, named target company's
+  information and official website.
 - score: 0-100 fit score. Use the campaign's positive/negative signals.
   80+ = explicit intent signal (actively looking, just funded + no eng team).
   60-79 = strong profile fit. Below 40 = not worth pursuing.
-- website: the COMPANY's own site if you can infer it (not linkedin.com,
-  crunchbase.com, news sites). Empty string if unknown.
+- website: the TARGET COMPANY's own official website (e.g. acme.com). NEVER set website to an aggregator or directory domain (e.g. topstartups.io, linkedin.com, crunchbase.com). Leave empty if unknown.
 - contact_name: only real person names visible in the result. Never invent.
-- Some snippets are placeholders ("We cannot provide a description...") or
-  empty. Judge those from the title and URL instead of rejecting outright —
-  e.g. a funding-announcement title about a specific company can still be a
-  scoreable lead.
 - Return one assessment per input result, keyed by result_index.
-- Be strict: mark is_lead=false for anything ambiguous or low-value. Precision
-  beats recall — bad leads waste outreach quota.
+- Be strict: mark is_lead=false for anything ambiguous, directory listicles, or low-value.
+  Precision beats recall — bad leads waste outreach quota.
 """
 
 
