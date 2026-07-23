@@ -11,8 +11,17 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://localhost:5432/leadgen"
 
     # LLM
+    llm_provider: str = "groq"  # "groq" or "anthropic"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-4-8"
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+
+    @property
+    def active_llm_model(self) -> str:
+        if self.llm_provider.lower() == "groq":
+            return self.groq_model
+        return self.anthropic_model
 
     # Search providers — free-first: DDG and self-hosted SearXNG take the load,
     # paid Serper and rate-limited Brave are fallbacks when the free ones fail.

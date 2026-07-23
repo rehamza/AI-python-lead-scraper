@@ -10,8 +10,9 @@ psycopg[binary]>=3.2
 pydantic>=2.12
 pydantic-settings>=2.6
 
-# LLM — Anthropic Claude
+# LLM — Anthropic Claude & Groq
 anthropic>=0.116
+groq>=0.18.0
 
 # Search providers
 ddgs>=9.0            # free multi-engine metasearch (no API key)
